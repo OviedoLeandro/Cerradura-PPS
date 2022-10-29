@@ -1,4 +1,5 @@
 from machine import Pin, Timer
+import requests
 # Import time
 import time
 import utime
@@ -28,28 +29,41 @@ col_pins = [Pin(pin_name, mode=Pin.IN, pull=Pin.PULL_DOWN) for pin_name in cols]
 #Initialize the onboard LED as output
 led = Pin("LED", Pin.OUT)
 #Initialize timer_one. Used for toggling the LED
-timer_one = Timer()
+timer_one = Timetr()
 #Initialize timer_two. Used for polling keypad
 timer_two = Timer()
+#Initialize timer_three. Used for polling status (cloud input)
+timer_three = Timer()
+#Initialize timer_two. Used for polling password change (cloud input)
+timer_four = Timer()
 
 #Variable de estados
 key_status = [[KEY_UP, KEY_UP, KEY_UP, KEY_UP], [KEY_UP, KEY_UP, KEY_UP, KEY_UP], [KEY_UP, KEY_UP, KEY_UP, KEY_UP], [KEY_UP, KEY_UP, KEY_UP, KEY_UP]]
 
 #Password valida
-valid_password = '12345'
+default_password = '12345'
+valid_password = ''
+
 #Password en pantalla
 screen_password = ''
 
+#estatus de la cerradura (abierta o cerrada) que se puede acceder desde internet
+cloud_lock_status = False
 
-def BlinkLED(timer):
+
+def LocalBlinkLED(timer):
     led.toggle()
+    
 def InitKeypad():
     for row in range(0,4):
         for col in range(0,4):
             row_pins[row].low()
-def PollKeypad(timer):
+            
+def LocalPollKeypad(timer):
     global screen_password
     global valid_password
+    global cloud_lock_status 
+    
     key = None
     for row in range(4):
         for col in range(4):
@@ -76,13 +90,14 @@ def PollKeypad(timer):
                 
                 else:
                     #Chequeo de password
-                    if valid_password == screen_password:
+                    if valid_password == screen_password or cloud_lock_status:
                         display.WriteLine('   BIENVENIDO ',1)
                         display.WriteLine('   Password OK ',2)
                         screen_password = ''
                         time.sleep(3)
                         display.WriteLine('   Password:   ',1)
                         display.WriteLine(' Ingrese aqui  ',2)
+                        cloud_lock_status = False
                         
                     else:
                         display.WriteLine('',1)
@@ -211,16 +226,55 @@ class LCD16x2:
         self.WriteCommand(0x0C)
                 
                 
+                
+def get_auth_key():
+    auth_key = ""
+    return auth_key
+    
+#check if a new password is available in case cloud service is up
+def CloudNewPassword(timer):
+    global valid_password
+    url_password = "https://cryptostudioback.herokuapp.com/api/studio/pdf"
+    auth_key = get_auth_key()
+    
+    try:
+        r = requests.get(url_password, params={'Bearer': auth_key})
+        valid_password = r.json().get('password')
+    except:
+        print("Servicio no disponible")
+    
+def CloudStatusLock(timer):
+    global cloud_lock_status 
+    url_lock_status = "https://cryptostudioback.herokuapp.com/api/studio/pdf"
+    auth_key = get_auth_key()
+    
+    try:
+        r = requests.get(url_lock_status, params={'Bearer': auth_key})
+        cloud_lock_status = r.json().get('status')
+    except:
+        print("Servicio no disponible")
+    
+    
+                
 # Initialize and set all the rows to low
 InitKeypad()
 display = LCD16x2(RS,ENABLE,BACK_LIGHT,D4,D5,D6,D7)
+
 # Turn on Back light
 display.BackLightOn()
+
 # Welcome string
 display.WriteLine('   Password:   ',1)
 display.WriteLine(' Ingrese aqui  ',2)
 display.CursorOff()
+
 # Wait for five seconds
 time.sleep(5)
-timer_one.init(freq=5, mode=Timer.PERIODIC, callback=BlinkLED)
-timer_two.init(freq=100, mode=Timer.PERIODIC, callback=PollKeypad)
+
+#local inputs
+timer_one.init(freq=5, mode=Timer.PERIODIC, callback=LocalBlinkLED)
+timer_two.init(freq=100, mode=Timer.PERIODIC, callback=LocalPollKeypad)
+
+#cloud inputs
+timer_three.init(freq=100, mode=Timer.PERIODIC, callback=CloudNewPassword)
+timer_four.init(freq=1, mode=Timer.PERIODIC, callback=CloudStatusLock)
