@@ -1,9 +1,10 @@
 from machine import Pin, Timer
-import requests
+import urequests as requests
 # Import time
 import time
 import utime
 import machine
+import network
 # Import lcd_4bit_mode
 #         import lcd_4bit_mode
 # Initialize LCD pins
@@ -29,7 +30,7 @@ col_pins = [Pin(pin_name, mode=Pin.IN, pull=Pin.PULL_DOWN) for pin_name in cols]
 #Initialize the onboard LED as output
 led = Pin("LED", Pin.OUT)
 #Initialize timer_one. Used for toggling the LED
-timer_one = Timetr()
+timer_one = Timer()
 #Initialize timer_two. Used for polling keypad
 timer_two = Timer()
 #Initialize timer_three. Used for polling status (cloud input)
@@ -269,10 +270,27 @@ display.WriteLine(' Ingrese aqui  ',2)
 display.CursorOff()
 
 # Wait for five seconds
+led.off()
 time.sleep(5)
 
+ssid = 'Cerradura'
+password = 'Grupo 3 '
+
+station = network.WLAN(network.STA_IF)
+
+station.active(True)
+station.connect(ssid, password)
+
+while station.isconnected() == False:
+  pass
+
+print('Connection successful')
+print(station.ifconfig())
+
+led.on()
+
 #local inputs
-timer_one.init(freq=5, mode=Timer.PERIODIC, callback=LocalBlinkLED)
+# timer_one.init(freq=5, mode=Timer.PERIODIC, callback=LocalBlinkLED)
 timer_two.init(freq=100, mode=Timer.PERIODIC, callback=LocalPollKeypad)
 
 #cloud inputs
