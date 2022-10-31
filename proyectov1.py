@@ -34,8 +34,8 @@ timer_one = Timer()
 #Initialize timer_two. Used for polling keypad
 timer_two = Timer()
 #Initialize timer_three. Used for polling status (cloud input)
-timer_three = Timer()
-#Initialize timer_two. Used for polling password change (cloud input)
+# timer_three = Timer()
+#Initialize timer_four. Used for polling password change (cloud input)
 timer_four = Timer()
 
 #Variable de estados
@@ -91,7 +91,8 @@ def LocalPollKeypad(timer):
                 
                 else:
                     #Chequeo de password
-                    if valid_password == screen_password or cloud_lock_status:
+                    is_valid_password = get_cloud_password(screen_password)
+                    if is_valid_password or cloud_lock_status:
                         display.WriteLine('   BIENVENIDO ',1)
                         display.WriteLine('   Password OK ',2)
                         screen_password = ''
@@ -226,34 +227,48 @@ class LCD16x2:
     def CursorOff(self):
         self.WriteCommand(0x0C)
                 
-                
-                
-def get_auth_key():
-    auth_key = ""
-    return auth_key
     
 #check if a new password is available in case cloud service is up
-def CloudNewPassword(timer):
+def get_cloud_password(local_pass):
     global valid_password
-    url_password = "https://cryptostudioback.herokuapp.com/api/studio/pdf"
-    auth_key = get_auth_key()
+    global cloud_lock_status
     
+    url_password = "https://pinpad-caece.herokuapp.com/api/check-password/"+local_pass
+        
     try:
-        r = requests.get(url_password, params={'Bearer': auth_key})
-        valid_password = r.json().get('password')
+        r = requests.get(url_password)
+                
+        if r.json().get('unlock') == 'true':
+            cloud_lock_status = True
+            valid_password = local_pass
+            return True
+        return False
     except:
-        print("Servicio no disponible")
+        print("CloudNewPassword - Servicio no disponible")
+        
+        #if connection is not available, compare against last valid password
+        if valid_password and valid_password == local_pass:
+            return True
+            
+        #if not connection and not valid pass set, use default
+        if not valid_password and default_password == local_pass:
+            return True
+        
+    return False
+            
+            
+            
     
 def CloudStatusLock(timer):
     global cloud_lock_status 
-    url_lock_status = "https://cryptostudioback.herokuapp.com/api/studio/pdf"
-    auth_key = get_auth_key()
     
+    url_lock_status = "https://pinpad-caece.herokuapp.com/api/status"
+        
     try:
-        r = requests.get(url_lock_status, params={'Bearer': auth_key})
-        cloud_lock_status = r.json().get('status')
+        r = requests.get(url_lock_status)
+        cloud_lock_status = r.json().get('unlock') == 'true'
     except:
-        print("Servicio no disponible")
+        print("CloudStatusLock - Servicio no disponible")
     
     
                 
@@ -294,5 +309,4 @@ led.on()
 timer_two.init(freq=100, mode=Timer.PERIODIC, callback=LocalPollKeypad)
 
 #cloud inputs
-timer_three.init(freq=100, mode=Timer.PERIODIC, callback=CloudNewPassword)
 timer_four.init(freq=1, mode=Timer.PERIODIC, callback=CloudStatusLock)
