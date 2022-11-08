@@ -46,7 +46,7 @@ default_password = '1234'
 valid_password = ''
 
 #Password en pantalla
-screen_password = ''
+screen_password = '1234'
 
 #estatus de la cerradura (abierta o cerrada) que se puede acceder desde internet
 cloud_lock_status = False
@@ -65,55 +65,55 @@ def LocalPollKeypad(timer):
     global valid_password
     global cloud_lock_status 
     
-    key = None
-    for row in range(4):
-        for col in range(4):
-            # Set the current row to high
-            row_pins[row].high()
-            # Check for key pressed events
-            if col_pins[col].value() == KEY_DOWN:
-                key = KEY_DOWN
-            if col_pins[col].value() == KEY_UP:
-                key = KEY_UP
-                
-            row_pins[row].low()
-            if key == KEY_DOWN and key != key_status[row][col] and not((row == 0 and col == 3) or (row == 1 and col == 3) or (row == 2 and col == 3) or (row == 3 and col == 0) or (row == 3 and col == 2)):
-                if not (row == 3 and col == 3):    
-                    display.WriteLine("                ",2)
-                    last_key_press = keys[row][col]
+#    key = None
+#    for row in range(4):
+#        for col in range(4):
+#            # Set the current row to high
+#            row_pins[row].high()
+#            # Check for key pressed events
+#            if col_pins[col].value() == KEY_DOWN:
+#                key = KEY_DOWN
+#            if col_pins[col].value() == KEY_UP:
+#                key = KEY_UP
+#                
+#            row_pins[row].low()
+#            if key == KEY_DOWN and key != key_status[row][col] and not((row == 0 and col == 3) or (row == 1 and col == 3) or (row == 2 and col == 3) or (row == 3 and col == 0) or (row == 3 and col == 2)):
+#                if not (row == 3 and col == 3):    
+#                    display.WriteLine("                ",2)
+#                    last_key_press = keys[row][col]
+#        
+#                    screen_password += last_key_press 
+#                    
+#                    display.WriteLine(screen_password,2)
+#                    
+#                    print("Se toco: " + last_key_press)
+#                    key_status[row][col] = key
+#                
+#                else:
+                    #Chequeo de password
+    is_valid_password = get_cloud_password(screen_password)
+    if is_valid_password or cloud_lock_status:
+        display.WriteLine('   BIENVENIDO ',1)
+        display.WriteLine('   Password OK ',2)
+        led.high()
+        print("SOS UN CAPO")
+        #screen_password = ''
+        time.sleep(3)
+        display.WriteLine('   Password:   ',1)
+        display.WriteLine(' Ingrese aqui  ',2)
+        cloud_lock_status = False
         
-                    screen_password += last_key_press 
-                    
-                    display.WriteLine(screen_password,2)
-                    
-                    print("Se toco: " + last_key_press)
-                    key_status[row][col] = key
+        
+    else:
+        display.WriteLine('',1)
+        display.WriteLine('  Incorrecto!  ',2)
+        #screen_password = ''
+        time.sleep(3)
+        display.WriteLine('   Password:   ',1)
+        display.WriteLine(' Ingrese aqui  ',2)
                 
-            else:
-                #Chequeo de password
-                is_valid_password = get_cloud_password(screen_password)
-                if is_valid_password or cloud_lock_status:
-                    display.WriteLine('   BIENVENIDO ',1)
-                    display.WriteLine('   Password OK ',2)
-                    led.high()
-                    print("SOS UN CAPO")
-                    screen_password = ''
-                    time.sleep(3)
-                    display.WriteLine('   Password:   ',1)
-                    display.WriteLine(' Ingrese aqui  ',2)
-                    cloud_lock_status = False
-                    
-                    
-                else:
-                    display.WriteLine('',1)
-                    display.WriteLine('  Incorrecto!  ',2)
-                    screen_password = ''
-                    time.sleep(3)
-                    display.WriteLine('   Password:   ',1)
-                    display.WriteLine(' Ingrese aqui  ',2)
-                
-            if key == KEY_UP:
-                key_status[row][col] = key
+#            if key == KEY_UP:
+#                key_status[row][col] = key
                 
                         
                         
@@ -240,8 +240,8 @@ def get_cloud_password(local_pass):
         
     try:
         r = requests.get(url_password)
-        print(r) 
-        if r.json().get('unlock') == 'true':
+        print(r.json()) 
+        if r.json().get('unlock'):
             cloud_lock_status = True
             valid_password = local_pass
             return True
@@ -269,8 +269,9 @@ def CloudStatusLock(timer):
         
     try:
         r = requests.get(url_lock_status)
-        cloud_lock_status = r.json().get('unlock') == 'true'
-
+        cloud_lock_status = r.json().get('unlock')
+        print(r.json())
+        print(cloud_lock_status)
         if cloud_lock_status:
             led.high()
         else:
