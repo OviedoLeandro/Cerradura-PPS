@@ -269,10 +269,16 @@ def CloudStatusLock(timer):
         
     try:
         r = requests.get(url_lock_status)
-        print(r.json())
         cloud_lock_status = r.json().get('unlock') == 'true'
+
+        if cloud_lock_status:
+            led.high()
+        else:
+            led.low()
     except:
         print("CloudStatusLock - Servicio no disponible")
+
+
     
     
                 
