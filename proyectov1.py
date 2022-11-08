@@ -11,10 +11,10 @@ import network
 RS = machine.Pin(4,machine.Pin.OUT)
 ENABLE = machine.Pin(5,machine.Pin.OUT)
 BACK_LIGHT = machine.Pin(6,machine.Pin.OUT)
-D4 = machine.Pin(0,machine.Pin.OUT)
-D5 = machine.Pin(1,machine.Pin.OUT)
-D6 = machine.Pin(2,machine.Pin.OUT)
-D7 = machine.Pin(3,machine.Pin.OUT)                  
+D4 = machine.Pin(18,machine.Pin.OUT)
+D5 = machine.Pin(19,machine.Pin.OUT)
+D6 = machine.Pin(20,machine.Pin.OUT)
+D7 = machine.Pin(21,machine.Pin.OUT)                  
  
 # CONSTANTS
 KEY_UP   = const(0)
@@ -42,7 +42,7 @@ timer_four = Timer()
 key_status = [[KEY_UP, KEY_UP, KEY_UP, KEY_UP], [KEY_UP, KEY_UP, KEY_UP, KEY_UP], [KEY_UP, KEY_UP, KEY_UP, KEY_UP], [KEY_UP, KEY_UP, KEY_UP, KEY_UP]]
 
 #Password valida
-default_password = '12345'
+default_password = '1234'
 valid_password = ''
 
 #Password en pantalla
@@ -89,25 +89,28 @@ def LocalPollKeypad(timer):
                     print("Se toco: " + last_key_press)
                     key_status[row][col] = key
                 
+            else:
+                #Chequeo de password
+                is_valid_password = get_cloud_password(screen_password)
+                if is_valid_password or cloud_lock_status:
+                    display.WriteLine('   BIENVENIDO ',1)
+                    display.WriteLine('   Password OK ',2)
+                    led.high()
+                    print("SOS UN CAPO")
+                    screen_password = ''
+                    time.sleep(3)
+                    display.WriteLine('   Password:   ',1)
+                    display.WriteLine(' Ingrese aqui  ',2)
+                    cloud_lock_status = False
+                    
+                    
                 else:
-                    #Chequeo de password
-                    is_valid_password = get_cloud_password(screen_password)
-                    if is_valid_password or cloud_lock_status:
-                        display.WriteLine('   BIENVENIDO ',1)
-                        display.WriteLine('   Password OK ',2)
-                        screen_password = ''
-                        time.sleep(3)
-                        display.WriteLine('   Password:   ',1)
-                        display.WriteLine(' Ingrese aqui  ',2)
-                        cloud_lock_status = False
-                        
-                    else:
-                        display.WriteLine('',1)
-                        display.WriteLine('  Incorrecto!  ',2)
-                        screen_password = ''
-                        time.sleep(3)
-                        display.WriteLine('   Password:   ',1)
-                        display.WriteLine(' Ingrese aqui  ',2)
+                    display.WriteLine('',1)
+                    display.WriteLine('  Incorrecto!  ',2)
+                    screen_password = ''
+                    time.sleep(3)
+                    display.WriteLine('   Password:   ',1)
+                    display.WriteLine(' Ingrese aqui  ',2)
                 
             if key == KEY_UP:
                 key_status[row][col] = key
@@ -237,7 +240,7 @@ def get_cloud_password(local_pass):
         
     try:
         r = requests.get(url_password)
-                
+        print(r) 
         if r.json().get('unlock') == 'true':
             cloud_lock_status = True
             valid_password = local_pass
@@ -266,6 +269,7 @@ def CloudStatusLock(timer):
         
     try:
         r = requests.get(url_lock_status)
+        print(r.json())
         cloud_lock_status = r.json().get('unlock') == 'true'
     except:
         print("CloudStatusLock - Servicio no disponible")
@@ -288,25 +292,29 @@ display.CursorOff()
 led.off()
 time.sleep(5)
 
-ssid = 'Cerradura'
-password = 'Grupo 3 '
+def WifiConnection():
+    ssid = 'Cerradura'
+    password = 'Grupo 3 '
 
-station = network.WLAN(network.STA_IF)
+    station = network.WLAN(network.STA_IF)
 
-station.active(True)
-station.connect(ssid, password)
+    station.active(True)
+    station.connect(ssid, password)
 
-while station.isconnected() == False:
-  pass
+    while station.isconnected() == False:
+      pass
 
-print('Connection successful')
-print(station.ifconfig())
+    print('Connection successful')
+    print(station.ifconfig())
 
-led.on()
+    #led.on()
+
+WifiConnection()
 
 #local inputs
-# timer_one.init(freq=5, mode=Timer.PERIODIC, callback=LocalBlinkLED)
-timer_two.init(freq=100, mode=Timer.PERIODIC, callback=LocalPollKeypad)
+#timer_one.init(freq=5, mode=Timer.PERIODIC, callback=LocalBlinkLED)
+timer_two.init(freq=1, mode=Timer.PERIODIC, callback=LocalPollKeypad)
 
 #cloud inputs
 timer_four.init(freq=1, mode=Timer.PERIODIC, callback=CloudStatusLock)
+
